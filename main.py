@@ -1,0 +1,66 @@
+from dotenv import load_dotenv
+from utils.audio_processor import process_input
+from core.transcriber import transcribe_all
+from core.sammarize import summarizes,generate_title
+from core.extractor import extract_action_items,extract_key_decisions,extract_questions
+from core.rag_engine import build_rag_chain,ask_question
+
+def run_pipeline(source:str,language:True):
+    print("Starting AI Vedio Assistant")
+    chunks=process_input(source)
+    transcript=transcribe_all(chunks,language)
+
+    print(transcript[:500] + "..." if len(transcript) > 500 else transcript)
+
+    title = generate_title(transcript)
+    summary = summarizes(transcript)
+
+    action_items = extract_action_items(transcript)
+    decisions = extract_key_decisions(transcript)
+    questions = extract_questions(transcript)
+
+    rag_chain = build_rag_chain(transcript)
+
+    return {
+        "title": title,
+        "transcript": transcript,
+        "summary": summary,
+        "action_items": action_items,
+        "key_decisions": decisions,
+        "open_questions": questions,
+        "rag_chain": rag_chain,
+    }
+
+
+if __name__=="__main__":
+    source=input("Enter URL or your local vedio file path: ").strip()
+    language=translate = (
+        input("Translate to English? (y/n): ")
+        .strip()
+        .lower() == "y"
+    )
+    result=run_pipeline(source,language)
+
+    print("\n" + "=" * 60)
+    print(f"📌 Title: {result['title']}")
+    print(f"\n📋 Summary:\n{result['summary']}")
+    print(f"\n✅ Action Items:\n{result['action_items']}")
+    print(f"\n🔑 Key Decisions:\n{result['key_decisions']}")
+    print(f"\n❓ Open Questions:\n{result['open_questions']}")
+    print("=" * 60)
+
+    # Phase 2 — Chat with your meeting via RAG
+    print("\n💬 Chat with your meeting (type 'exit' to quit)\n")
+
+    rag_chain=result["rag_chain"]
+
+    while True:
+        question=input("you: ").strip()
+        if question.lower() in ["exit",'quit','q']:
+            print("Goodbye")
+        if not question:
+            continue
+        answer= ask_question(rag_chain,question)
+        print(f"\n Assistant: {answer}\n")
+
+        
